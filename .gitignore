@@ -1,0 +1,4 @@
+uploads/
+generated/
+__pycache__/
+.env
