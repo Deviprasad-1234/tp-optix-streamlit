@@ -66,7 +66,7 @@ os.makedirs(GENERATED_FOLDER, exist_ok=True)
 # CHATPDF API
 ############################################################
 
-CHATPDF_API_KEY = "sec_U7y9RP53Iub6xQeUNZ4tjXyQj5xjVXVQ"
+CHATPDF_API_KEY = st.secrets["CHATPDF_API_KEY"]
 
 ############################################################
 # PAGE PARSER
