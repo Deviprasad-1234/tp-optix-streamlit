@@ -509,7 +509,7 @@ IMPORTANT:
 STRICT EXTRACTION SOURCE RULES:
 
 1. "final_pli" MUST be created STRICTLY and ONLY from:
-PROFIT AND LOSS EXTRACTION section. (include all itesm upto Other expenses)
+PROFIT AND LOSS EXTRACTION section. (include all items from Revenue or Revenue from Operation to Other expenses all strictly everytime. Don't skip please)
 
 2. "non_operating_income" MUST be created STRICTLY and ONLY from:
 OTHER INCOME EXTRACTION section.
