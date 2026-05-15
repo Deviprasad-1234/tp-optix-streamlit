@@ -38,9 +38,9 @@ scope = [
 
 ]
 
-creds = ServiceAccountCredentials.from_json_keyfile_name(
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
 
-    "google_credentials.json",
+    dict(st.secrets["gcp_service_account"]),
 
     scope
 
