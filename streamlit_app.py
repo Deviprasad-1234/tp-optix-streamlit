@@ -61,6 +61,15 @@ uploaded_file = st.file_uploader(
     type=["pdf"]
 )
 ####################################################
+# GOOGLE DRIVE LINK
+####################################################
+
+google_drive_link = st.text_input(
+
+    "OR Paste Google Drive PDF Link"
+
+)
+####################################################
 # UNIQUE JOB ID
 ####################################################
 
@@ -166,7 +175,69 @@ def clean_cell(text):
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
+############################################################
+# DOWNLOAD GOOGLE DRIVE PDF
+############################################################
 
+def download_drive_pdf(drive_link, output_path):
+
+    try:
+
+        ####################################################
+        # EXTRACT FILE ID
+        ####################################################
+
+        file_id = None
+
+        if "/file/d/" in drive_link:
+
+            file_id = drive_link.split("/file/d/")[1].split("/")[0]
+
+        elif "id=" in drive_link:
+
+            file_id = drive_link.split("id=")[1].split("&")[0]
+
+        ####################################################
+        # INVALID
+        ####################################################
+
+        if not file_id:
+
+            return False
+
+        ####################################################
+        # DIRECT DOWNLOAD URL
+        ####################################################
+
+        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+
+        ####################################################
+        # DOWNLOAD
+        ####################################################
+
+        response = requests.get(
+
+            download_url,
+
+            timeout=300
+
+        )
+
+        ####################################################
+        # SAVE FILE
+        ####################################################
+
+        with open(output_path, "wb") as f:
+
+            f.write(response.content)
+
+        return True
+
+    except Exception as e:
+
+        print(e)
+
+        return False
 ############################################################
 # RAW PAGE EXTRACTION
 ############################################################
@@ -847,20 +918,63 @@ if run_button:
         # SAVE PDF
         ####################################################
 
-        if uploaded_file is None:
-
-            st.error("Please upload PDF")
-
-            st.stop()
+        ####################################################
+        # PDF SOURCE
+        ####################################################
 
         pdf_path = os.path.join(
+
             UPLOAD_FOLDER,
-            uploaded_file.name
+
+            f"{job_id}.pdf"
+
         )
 
-        with open(pdf_path, "wb") as f:
+        ####################################################
+        # NORMAL FILE UPLOAD
+        ####################################################
 
-            f.write(uploaded_file.getbuffer())
+        if uploaded_file is not None:
+
+            with open(pdf_path, "wb") as f:
+
+                f.write(uploaded_file.getbuffer())
+
+        ####################################################
+        # GOOGLE DRIVE LINK
+        ####################################################
+
+        elif google_drive_link:
+
+            st.info("Downloading PDF from Google Drive...")
+
+            success = download_drive_pdf(
+
+                google_drive_link,
+
+                pdf_path
+
+            )
+
+            if not success:
+
+                st.error("Unable to download Google Drive PDF")
+
+                st.stop()
+
+        ####################################################
+        # NO INPUT
+        ####################################################
+
+        else:
+
+            st.error(
+
+                "Please upload PDF or provide Google Drive Link"
+
+            )
+
+            st.stop()
 
         ####################################################
         # STEP 1 EXTRACTION
