@@ -463,8 +463,49 @@ Treat the following as NON OPERATING:
 
 IMPORTANT:
 
-Show ALL such non operating expenses and income items and write whether it was operating or non operating. Also in the result under "Nature as opearting or non opearting" give the nature of the transaction.
-Under "final_pli" always give all the Profit and Loss items whatever is available before the Profit Before Tax in the P/L Statement. (e.g - Revenue From Operations to Other Expenses but exclue the Total Income or Total Revenue or Total Expenses or Total Cost type total values just give lineitem wise data)
+STRICT EXTRACTION SOURCE RULES:
+
+1. "final_pli" MUST be created STRICTLY and ONLY from:
+PROFIT AND LOSS EXTRACTION section.
+
+2. "non_operating_income" MUST be created STRICTLY and ONLY from:
+OTHER INCOME EXTRACTION section.
+
+3. "non_operating_expense" MUST be created STRICTLY and ONLY from:
+OTHER EXPENSE EXTRACTION section.
+
+4. Do NOT move items from P&L into non_operating_income.
+
+5. Do NOT move items from P&L into non_operating_expense.
+
+6. Do NOT deduct non-operating items from final_pli.
+
+7. final_pli should preserve the ORIGINAL Profit & Loss structure exactly as disclosed in the P&L before Profit Before Tax.
+
+8. Exclude:
+- Total Income
+- Total Revenue
+- Total Expenses
+- Total Cost
+- Profit Before Tax
+- Profit After Tax
+- EPS
+- OCI
+- Comprehensive Income
+
+9. Preserve ONLY line-item level data.
+
+10. AI dashboard calculations and PLI adjustments will happen later externally. Do NOT perform any adjustment calculations here.
+
+11. Under:
+"Nature as opearting or non opearting"
+
+ONLY use:
+- Operating
+- Non operating
+
+No other values allowed.
+
 ====================================================
 RETURN FORMAT
 ====================================================
@@ -990,7 +1031,35 @@ if run_button:
         st.write("STEP 3 — TP ANALYSIS JSON")
 
         st.json(tp_json)
+        
+        ####################################################
+        # AI STUDIO MASTER JSON
+        ####################################################
 
+        import json
+
+        final_ai_json = {
+
+            "step2_pli_json": financial_json,
+
+            "step2_rpt_json": rpt_json,
+
+            "step3_tp_json": tp_json
+
+        }
+
+        st.subheader("AI STUDIO MASTER JSON")
+
+        st.code(
+
+            json.dumps(
+                final_ai_json,
+                indent=2
+            ),
+
+            language="json"
+
+        )
         ####################################################
         # CLEANUP FILES
         ####################################################
