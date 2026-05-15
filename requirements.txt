@@ -2,3 +2,5 @@ streamlit
 requests
 pdfplumber
 reportlab
+gspread
+oauth2client
