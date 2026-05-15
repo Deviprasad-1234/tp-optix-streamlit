@@ -126,10 +126,6 @@ auto_run = query_params.get(
 
 )
 
-uploaded_file = st.file_uploader(
-    "Upload PDF",
-    type=["pdf"]
-)
 ####################################################
 # GOOGLE DRIVE LINK
 ####################################################
@@ -600,6 +596,129 @@ def safe_json_load(raw):
         return json.loads(raw)
     except:
         return {}
+############################################################
+# SMART PLI VALIDATION
+############################################################
+
+def validate_pli_json(
+
+    financial_json,
+
+    pl_text
+
+):
+
+    try:
+
+        ####################################################
+        # EMPTY JSON
+        ####################################################
+
+        if not financial_json:
+
+            return False, []
+
+        ####################################################
+        # KEY CHECK
+        ####################################################
+
+        if "final_pli" not in financial_json:
+
+            return False, []
+
+        final_pli = financial_json["final_pli"]
+
+        ####################################################
+        # EMPTY PLI
+        ####################################################
+
+        if not final_pli:
+
+            return False, []
+
+        ####################################################
+        # REQUIRED KEYWORDS
+        ####################################################
+
+        required_keywords = [
+
+            "Revenue",
+
+            "Income",
+
+            "Cost",
+
+            "change",
+
+            "Purchase",
+
+            "finance cost",
+
+            "Employee",
+
+            "Depreciation",
+
+            "Other expenses"
+
+        ]
+
+        ####################################################
+        # CHECK WHAT EXISTS IN P&L
+        ####################################################
+
+        pl_text_lower = pl_text.lower()
+
+        keywords_to_check = []
+
+        for keyword in required_keywords:
+
+            if keyword.lower() in pl_text_lower:
+
+                keywords_to_check.append(keyword)
+
+        ####################################################
+        # FINAL JSON TEXT
+        ####################################################
+
+        combined_text = json.dumps(
+
+            final_pli
+
+        ).lower()
+
+        ####################################################
+        # MISSING ITEMS
+        ####################################################
+
+        missing_keywords = []
+
+        for keyword in keywords_to_check:
+
+            if keyword.lower() not in combined_text:
+
+                missing_keywords.append(keyword)
+
+        ####################################################
+        # VALIDATION FAIL
+        ####################################################
+
+        if len(missing_keywords) > 0:
+
+            return False, missing_keywords
+
+        ####################################################
+        # MINIMUM ROWS
+        ####################################################
+
+        if len(final_pli) < 5:
+
+            return False, ["Minimum PLI rows missing"]
+
+        return True, []
+
+    except Exception as e:
+
+        return False, [str(e)]
 
 ############################################################
 # STEP 2 PROMPT
@@ -992,12 +1111,45 @@ IMPORTANT:
 if run_button:
 
     try:
+        ####################################################
+        # VERIFY JOB ID IN GOOGLE SHEET
+        ####################################################
+
         if not job_id:
 
             st.error("Please enter Unique Job ID")
 
             st.stop()
 
+        all_values = sheet.get_all_values()
+
+        job_found = False
+
+        job_row = None
+
+        for idx, row in enumerate(all_values, start=1):
+
+            if len(row) > 0 and row[0].strip() == job_id.strip():
+
+                job_found = True
+
+                job_row = idx
+
+                break
+
+        ####################################################
+        # INVALID JOB ID
+        ####################################################
+
+        if not job_found:
+
+            st.error(
+
+                "Code is not matching. Request has been rejected."
+
+            )
+
+            st.stop()
         ####################################################
         # PAGE INPUTS
         ####################################################
@@ -1029,20 +1181,10 @@ if run_button:
         )
 
         ####################################################
-        # NORMAL FILE UPLOAD
-        ####################################################
-
-        if uploaded_file is not None:
-
-            with open(pdf_path, "wb") as f:
-
-                f.write(uploaded_file.getbuffer())
-
-        ####################################################
         # GOOGLE DRIVE LINK
         ####################################################
 
-        elif google_drive_link:
+        if google_drive_link:
 
             st.info("Downloading PDF from Google Drive...")
 
@@ -1121,9 +1263,11 @@ if run_button:
         # DISPLAY STEP 1
         ####################################################
 
-        st.subheader("STEP 1 — EXTRACTION")
+        st.success(
 
-        st.text(step1)
+            "STEP 1 Extraction Completed"
+
+        )
 
         ####################################################
         # CREATE STEP1 PDF
@@ -1161,33 +1305,128 @@ if run_button:
 
             st.stop()
 
-        response_pli = ask_chatpdf(
-            source_id_1,
-            build_prompt_pli()
-        )
+        ####################################################
+        # STEP 2A — STRONG RETRY LOGIC
+        ####################################################
 
+        ####################################################
+        # STEP 2A — SMART RETRY LOGIC
+        ####################################################
+
+        financial_json = {}
+
+        max_retry = 2
+
+        retry_count = 0
+
+        validation_passed = False
+
+        missing_keywords = []
+
+        while retry_count < max_retry:
+
+            st.warning(
+
+                f"STEP 2A Attempt {retry_count + 1}"
+
+            )
+
+            response_pli = ask_chatpdf(
+
+                source_id_1,
+
+                build_prompt_pli()
+
+            )
+
+            financial_json = safe_json_load(
+
+                response_pli.get("content", "")
+
+            )
+
+            ####################################################
+            # SMART VALIDATION
+            ####################################################
+
+            validation_passed, missing_keywords = validate_pli_json(
+
+                financial_json,
+
+                pl_text
+
+            )
+
+            ####################################################
+            # SUCCESS
+            ####################################################
+
+            if validation_passed:
+
+                break
+
+            retry_count += 1
+
+        ####################################################
+        # FINAL FALLBACK
+        ####################################################
+
+        if not validation_passed:
+
+            financial_json = {
+
+                "status": "AI_STUDIO_REPROCESS_REQUIRED",
+
+                "reason": "Missing mandatory PLI items",
+
+                "missing_keywords": missing_keywords,
+
+                "raw_step2a_response": response_pli.get("content", ""),
+
+                "raw_pl_extraction": pl_text[:25000]
+
+            }
         ####################################################
         # STEP 2B — RPT JSON
         ####################################################
 
         st.info("Running STEP 2B — RPT JSON...")
 
+        ####################################################
+        # STEP 2B RETRY LOGIC
+        ####################################################
+
         response_rpt = ask_chatpdf(
+
             source_id_1,
+
             build_prompt_rpt()
+
+        )
+
+        rpt_json = safe_json_load(
+
+            response_rpt.get("content", "")
+
         )
 
         ####################################################
-        # DISPLAY STEP 2
+        # FINAL FALLBACK
         ####################################################
 
-        st.subheader("STEP 2A — PLI JSON")
+        if not rpt_json:
 
-        st.json(response_pli)
+            rpt_json = {
 
-        st.subheader("STEP 2B — RPT JSON")
+                "error":
 
-        st.json(response_rpt)
+                "STEP 2B FAILED",
+
+                "raw_step1_data":
+
+                final_step1_text[:25000]
+
+            }
 
         ####################################################
         # STEP 3 — TP ANALYSIS
@@ -1214,14 +1453,7 @@ if run_button:
             build_prompt_2()
         )
 
-        ####################################################
-        # DISPLAY STEP 3
-        ####################################################
-
-        st.subheader("STEP 3 — TP ANALYSIS JSON")
-
-        st.json(response_2)
-
+        
         ####################################################
         # SAFE PLI JSON
         ####################################################
@@ -1271,23 +1503,105 @@ if run_button:
             tp_json = raw_tp
 
         ####################################################
-        # FINAL JSON DISPLAY
+        # AI STUDIO MASTER JSON
         ####################################################
 
-        st.subheader("FINAL JSON OUTPUT")
+        master_json = {
 
-        st.write("STEP 2A — PLI JSON")
+            "job_id": job_id,
 
-        st.json(financial_json)
+            "financial_json": financial_json,
 
-        st.write("STEP 2B — RPT JSON")
+            "rpt_json": rpt_json,
 
-        st.json(rpt_json)
+            "tp_json": tp_json
 
-        st.write("STEP 3 — TP ANALYSIS JSON")
+        }
 
-        st.json(tp_json)
-        
+        master_json_string = json.dumps(
+
+            master_json,
+
+            indent=2
+
+        )
+
+        ####################################################
+        # FINAL VALIDATION BEFORE SHEET STORAGE
+        ####################################################
+
+        validation_passed, missing_keywords = validate_pli_json(
+
+            financial_json,
+
+            pl_text
+
+        )
+
+        if not validation_passed:
+
+            financial_json["final_validation_status"] = "FAILED"
+
+            financial_json["ai_studio_action"] = "REPROCESS_REQUIRED"
+
+        if not rpt_json:
+
+            st.error(
+
+                "RPT JSON Failed"
+
+            )
+
+            st.stop()
+
+        if not tp_json:
+
+            st.error(
+
+                "TP JSON Failed"
+
+            )
+
+            st.stop()
+
+        ####################################################
+        # STORE IN GOOGLE SHEET
+        ####################################################
+
+        timestamp = datetime.now().strftime(
+
+            "%Y-%m-%d %H:%M:%S"
+
+        )
+
+        sheet.update_cell(
+
+            job_row,
+
+            2,
+
+            master_json_string
+
+        )
+
+        sheet.update_cell(
+
+            job_row,
+
+            3,
+
+            timestamp
+
+        )
+        sheet.update_cell(
+
+            job_row,
+
+            10,
+
+            "COMPLETED"
+
+        )
         ####################################################
         # AI STUDIO MASTER JSON
         ####################################################
@@ -1303,47 +1617,6 @@ if run_button:
             "step3_tp_json": tp_json
 
         }
-        ####################################################
-        # DUPLICATE JOB CHECK
-        ####################################################
-
-        existing_ids = sheet.col_values(1)
-
-        if job_id in existing_ids:
-
-            st.error("Job ID already exists")
-
-            st.stop()
-        
-        ####################################################
-        # STORE JSON IN GOOGLE SHEET
-        ####################################################
-
-        sheet.append_row([
-
-            job_id,
-
-            json.dumps(
-                final_ai_json,
-                indent=2
-            ),
-
-            str(datetime.now())
-
-        ])
-
-        st.subheader("AI STUDIO MASTER JSON")
-
-        st.code(
-
-            json.dumps(
-                final_ai_json,
-                indent=2
-            ),
-
-            language="json"
-
-        )
         ####################################################
         # CLEANUP FILES
         ####################################################
@@ -1370,3 +1643,14 @@ if run_button:
         st.error(str(e))
 
         st.code(traceback.format_exc())
+    ####################################################
+    # DONE MESSAGE
+    ####################################################
+
+    st.success(
+
+        "DONE — Task Finished Successfully"
+
+    )
+
+    st.balloons()
