@@ -12,6 +12,11 @@ import json
 import re
 import requests
 import pdfplumber
+import gspread
+
+from oauth2client.service_account import ServiceAccountCredentials
+
+from datetime import datetime
 
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -21,13 +26,51 @@ from reportlab.platypus import (
 
 from reportlab.lib.styles import getSampleStyleSheet
 
+####################################################
+# GOOGLE SHEET CONNECTION
+####################################################
+
+scope = [
+
+    "https://spreadsheets.google.com/feeds",
+
+    "https://www.googleapis.com/auth/drive"
+
+]
+
+creds = ServiceAccountCredentials.from_json_keyfile_name(
+
+    "google_credentials.json",
+
+    scope
+
+)
+
+client = gspread.authorize(creds)
+
+sheet = client.open(
+
+    "TP_OPTIX_RESULTS"
+
+).sheet1
+
 st.title("TP OPTIX")
 
 uploaded_file = st.file_uploader(
     "Upload PDF",
     type=["pdf"]
 )
+####################################################
+# UNIQUE JOB ID
+####################################################
 
+job_id = st.text_input(
+
+    "Unique Job ID",
+
+    placeholder="TPX_20260515_001"
+
+)
 balanceSheetPages = st.text_input(
     "Balance Sheet Pages"
 )
@@ -780,6 +823,11 @@ IMPORTANT:
 if run_button:
 
     try:
+        if not job_id:
+
+            st.error("Please enter Unique Job ID")
+
+            st.stop()
 
         ####################################################
         # PAGE INPUTS
@@ -1043,6 +1091,34 @@ if run_button:
             "step3_tp_json": tp_json
 
         }
+        ####################################################
+        # DUPLICATE JOB CHECK
+        ####################################################
+
+        existing_ids = sheet.col_values(1)
+
+        if job_id in existing_ids:
+
+            st.error("Job ID already exists")
+
+            st.stop()
+        
+        ####################################################
+        # STORE JSON IN GOOGLE SHEET
+        ####################################################
+
+        sheet.append_row([
+
+            job_id,
+
+            json.dumps(
+                final_ai_json,
+                indent=2
+            ),
+
+            str(datetime.now())
+
+        ])
 
         st.subheader("AI STUDIO MASTER JSON")
 
