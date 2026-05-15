@@ -1396,19 +1396,41 @@ if run_button:
         # STEP 2B RETRY LOGIC
         ####################################################
 
-        response_rpt = ask_chatpdf(
+        ####################################################
+        # STEP 2B RETRY LOGIC
+        ####################################################
 
-            source_id_1,
+        rpt_json = {}
 
-            build_prompt_rpt()
+        rpt_retry = 0
 
-        )
+        max_rpt_retry = 2
 
-        rpt_json = safe_json_load(
+        while rpt_retry < max_rpt_retry:
 
-            response_rpt.get("content", "")
+            response_rpt = ask_chatpdf(
 
-        )
+                source_id_1,
+
+                build_prompt_rpt()
+
+            )
+
+            rpt_json = safe_json_load(
+
+                response_rpt.get("content", "")
+
+            )
+
+            ################################################
+            # VALID
+            ################################################
+
+            if rpt_json and "rpt_table" in rpt_json:
+
+                break
+
+            rpt_retry += 1
 
         ####################################################
         # FINAL FALLBACK
@@ -1418,16 +1440,15 @@ if run_button:
 
             rpt_json = {
 
-                "error":
+                "status": "AI_STUDIO_REPROCESS_REQUIRED",
 
-                "STEP 2B FAILED",
+                "reason": "RPT JSON FAILED",
 
-                "raw_step1_data":
+                "raw_response": response_rpt,
 
-                final_step1_text[:25000]
+                "raw_rpt_text": rpt_text[:25000]
 
             }
-
         ####################################################
         # STEP 3 — TP ANALYSIS
         ####################################################
@@ -1448,10 +1469,59 @@ if run_button:
 
             st.stop()
 
-        response_2 = ask_chatpdf(
-            source_id_2,
-            build_prompt_2()
-        )
+        ####################################################
+        # STEP 3 — STRONG RETRY
+        ####################################################
+
+        tp_json = {}
+
+        tp_retry = 0
+
+        max_tp_retry = 2
+
+        while tp_retry < max_tp_retry:
+
+            response_2 = ask_chatpdf(
+
+                source_id_2,
+
+                build_prompt_2()
+
+            )
+
+            tp_json = safe_json_load(
+
+                response_2.get("content", "")
+
+            )
+
+            ####################################################
+            # VALID TP JSON
+            ####################################################
+
+            if tp_json and "basic_information" in tp_json:
+
+                break
+
+            tp_retry += 1
+
+        ####################################################
+        # FINAL FALLBACK
+        ####################################################
+
+        if not tp_json:
+
+            tp_json = {
+
+                "status": "AI_STUDIO_REPROCESS_REQUIRED",
+
+                "reason": "TP JSON FAILED",
+
+                "raw_response": response_2,
+
+                "raw_pdf_data": final_step1_text[:25000]
+
+            }
 
         
         ####################################################
@@ -1485,22 +1555,6 @@ if run_button:
         else:
 
             rpt_json = raw_rpt
-
-        ####################################################
-        # SAFE TP JSON
-        ####################################################
-
-        raw_tp = response_2.get("content", "")
-
-        if isinstance(raw_tp, str):
-
-            raw_tp = raw_tp.strip()
-
-            tp_json = safe_json_load(raw_tp)
-
-        else:
-
-            tp_json = raw_tp
 
         ####################################################
         # AI STUDIO MASTER JSON
@@ -1543,26 +1597,6 @@ if run_button:
             financial_json["final_validation_status"] = "FAILED"
 
             financial_json["ai_studio_action"] = "REPROCESS_REQUIRED"
-
-        if not rpt_json:
-
-            st.error(
-
-                "RPT JSON Failed"
-
-            )
-
-            st.stop()
-
-        if not tp_json:
-
-            st.error(
-
-                "TP JSON Failed"
-
-            )
-
-            st.stop()
 
         ####################################################
         # STORE IN GOOGLE SHEET
