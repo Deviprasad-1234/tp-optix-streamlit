@@ -586,21 +586,11 @@ def ask_chatpdf(source_id, prompt):
 
 def safe_json_load(raw):
 
-    if not raw:
-        return {}
-
-    raw = raw.replace("```json", "")
-    raw = raw.replace("```", "")
-
-    try:
-        return json.loads(raw)
-    except:
-        return {}
-############################################################
-# SMART PLI VALIDATION
+    ############################################################
+# CHECK MISSING PLI KEYWORDS
 ############################################################
 
-def validate_pli_json(
+def check_missing_pli_keywords(
 
     financial_json,
 
@@ -611,30 +601,30 @@ def validate_pli_json(
     try:
 
         ####################################################
-        # EMPTY JSON
+        # NO JSON
         ####################################################
 
         if not financial_json:
 
-            return False, []
+            return True, ["JSON EMPTY"]
 
         ####################################################
-        # KEY CHECK
+        # NO final_pli
         ####################################################
 
         if "final_pli" not in financial_json:
 
-            return False, []
-
-        final_pli = financial_json["final_pli"]
+            return True, ["final_pli missing"]
 
         ####################################################
-        # EMPTY PLI
+        # FINAL PLI TEXT
         ####################################################
 
-        if not final_pli:
+        combined_text = json.dumps(
 
-            return False, []
+            financial_json["final_pli"]
+
+        ).lower()
 
         ####################################################
         # REQUIRED KEYWORDS
@@ -655,62 +645,47 @@ def validate_pli_json(
         ]
 
         ####################################################
-        # CHECK WHAT EXISTS IN P&L
-        ####################################################
-
-        pl_text_lower = pl_text.lower()
-
-        keywords_to_check = []
-
-        for keyword in required_keywords:
-
-            if keyword.lower() in pl_text_lower:
-
-                keywords_to_check.append(keyword)
-
-        ####################################################
-        # FINAL JSON TEXT
-        ####################################################
-
-        combined_text = json.dumps(
-
-            final_pli
-
-        ).lower()
-
-        ####################################################
-        # MISSING ITEMS
+        # CHECK ONLY IF EXISTS IN P&L
         ####################################################
 
         missing_keywords = []
 
-        for keyword in keywords_to_check:
+        for keyword in required_keywords:
 
-            if keyword.lower() not in combined_text:
+            if keyword.lower() in pl_text.lower():
 
-                missing_keywords.append(keyword)
+                if keyword.lower() not in combined_text:
+
+                    missing_keywords.append(keyword)
 
         ####################################################
-        # VALIDATION FAIL
+        # RESULT
         ####################################################
 
         if len(missing_keywords) > 0:
 
-            return False, missing_keywords
+            return True, missing_keywords
 
-        ####################################################
-        # MINIMUM ROWS
-        ####################################################
-
-        if len(final_pli) < 5:
-
-            return False, ["Minimum PLI rows missing"]
-
-        return True, []
+        return False, []
 
     except Exception as e:
 
-        return False, [str(e)]
+        return True, [str(e)]
+
+    if not raw:
+        return {}
+
+    raw = raw.replace("```json", "")
+    raw = raw.replace("```", "")
+
+    try:
+        return json.loads(raw)
+    except:
+        return {}
+############################################################
+# SMART PLI VALIDATION
+############################################################
+
 
 ############################################################
 # STEP 2 PROMPT
@@ -1305,25 +1280,53 @@ if run_button:
         # STEP 2A — SMART RETRY LOGIC
         ####################################################
 
-        financial_json = {}
+        ####################################################
+        # STEP 2A — NORMAL GENERATION
+        ####################################################
 
-        max_retry = 2
+        response_pli = ask_chatpdf(
 
-        retry_count = 0
+            source_id_1,
 
-        validation_passed = False
+            build_prompt_pli()
 
-        missing_keywords = []
+        )
 
-        while retry_count < max_retry:
+        financial_json = safe_json_load(
+
+            response_pli.get("content", "")
+
+        )
+
+        ####################################################
+        # CHECK MISSING KEYWORDS
+        ####################################################
+
+        rerun_required, missing_keywords = check_missing_pli_keywords(
+
+            financial_json,
+
+            pl_text
+
+        )
+
+        ####################################################
+        # RERUN ONLY IF MISSING
+        ####################################################
+
+        if rerun_required:
 
             st.warning(
 
-                f"STEP 2A Attempt {retry_count + 1}"
+                f"Re-running PLI Extraction. Missing: {missing_keywords}"
 
             )
 
-            response_pli = ask_chatpdf(
+            ####################################################
+            # SECOND ATTEMPT
+            ####################################################
+
+            response_pli_retry = ask_chatpdf(
 
                 source_id_1,
 
@@ -1331,19 +1334,19 @@ if run_button:
 
             )
 
-            financial_json = safe_json_load(
+            retry_json = safe_json_load(
 
-                response_pli.get("content", "")
+                response_pli_retry.get("content", "")
 
             )
 
             ####################################################
-            # SMART VALIDATION
+            # CHECK AGAIN
             ####################################################
 
-            validation_passed, missing_keywords = validate_pli_json(
+            rerun_required_again, missing_keywords_again = check_missing_pli_keywords(
 
-                financial_json,
+                retry_json,
 
                 pl_text
 
@@ -1353,31 +1356,29 @@ if run_button:
             # SUCCESS
             ####################################################
 
-            if validation_passed:
+            if not rerun_required_again:
 
-                break
+                financial_json = retry_json
 
-            retry_count += 1
+            ####################################################
+            # FINAL FAILURE
+            ####################################################
 
-        ####################################################
-        # FINAL FALLBACK
-        ####################################################
+            else:
 
-        if not validation_passed:
+                financial_json = {
 
-            financial_json = {
+                    "status": "AI_STUDIO_REPROCESS_REQUIRED",
 
-                "status": "AI_STUDIO_REPROCESS_REQUIRED",
+                    "reason": "Missing mandatory PLI items after retry",
 
-                "reason": "Missing mandatory PLI items",
+                    "missing_keywords": missing_keywords_again,
 
-                "missing_keywords": missing_keywords,
+                    "raw_step2a_response": response_pli_retry.get("content", ""),
 
-                "raw_step2a_response": response_pli.get("content", ""),
+                    "raw_pl_extraction": pl_text[:25000]
 
-                "raw_pl_extraction": pl_text[:25000]
-
-            }
+                }
         ####################################################
         # STEP 2B — RPT JSON
         ####################################################
@@ -1538,24 +1539,6 @@ if run_button:
             indent=2
 
         )
-
-        ####################################################
-        # FINAL VALIDATION BEFORE SHEET STORAGE
-        ####################################################
-
-        validation_passed, missing_keywords = validate_pli_json(
-
-            financial_json,
-
-            pl_text
-
-        )
-
-        if not validation_passed:
-
-            financial_json["final_validation_status"] = "FAILED"
-
-            financial_json["ai_studio_action"] = "REPROCESS_REQUIRED"
 
         ####################################################
         # STORE IN GOOGLE SHEET
