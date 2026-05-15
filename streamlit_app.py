@@ -56,6 +56,76 @@ sheet = client.open(
 
 st.title("TP OPTIX")
 
+####################################################
+# QUERY PARAMS
+####################################################
+
+query_params = st.query_params
+
+auto_pdf_link = query_params.get(
+
+    "pdf_link",
+
+    ""
+
+)
+
+auto_job = query_params.get(
+
+    "job_id",
+
+    ""
+
+)
+
+auto_bs = query_params.get(
+
+    "bs",
+
+    ""
+
+)
+
+auto_pl = query_params.get(
+
+    "pl",
+
+    ""
+
+)
+
+auto_oi = query_params.get(
+
+    "oi",
+
+    ""
+
+)
+
+auto_oe = query_params.get(
+
+    "oe",
+
+    ""
+
+)
+
+auto_rpt = query_params.get(
+
+    "rpt",
+
+    ""
+
+)
+
+auto_run = query_params.get(
+
+    "run",
+
+    "false"
+
+)
+
 uploaded_file = st.file_uploader(
     "Upload PDF",
     type=["pdf"]
@@ -66,7 +136,9 @@ uploaded_file = st.file_uploader(
 
 google_drive_link = st.text_input(
 
-    "OR Paste Google Drive PDF Link"
+    "OR Paste Google Drive PDF Link",
+
+    value=auto_pdf_link
 
 )
 ####################################################
@@ -77,32 +149,58 @@ job_id = st.text_input(
 
     "Unique Job ID",
 
+    value=auto_job,
+
     placeholder="TPX_20260515_001"
 
 )
 balanceSheetPages = st.text_input(
-    "Balance Sheet Pages"
+
+    "Balance Sheet Pages",
+
+    value=auto_bs
+
 )
 
 plStatementPages = st.text_input(
-    "P&L Pages"
+
+    "P&L Pages",
+
+    value=auto_pl
+
 )
 
 otherIncomePages = st.text_input(
-    "Other Income Pages"
+
+    "Other Income Pages",
+
+    value=auto_oi
+
 )
 
 otherExpensePages = st.text_input(
-    "Other Expense Pages"
+
+    "Other Expense Pages",
+
+    value=auto_oe
+
 )
 
 rptPages = st.text_input(
-    "RPT Pages"
+
+    "RPT Pages",
+
+    value=auto_rpt
+
 )
 
 run_button = st.button(
     "RUN TP OPTIX"
 )
+
+if auto_run == "true":
+
+    run_button = True
 ############################################################
 # FLASK
 ############################################################
