@@ -644,15 +644,7 @@ def validate_pli_json(
 
             "Revenue",
 
-            "Income",
-
-            "Cost",
-
-            "change",
-
             "Purchase",
-
-            "finance cost",
 
             "Employee",
 
@@ -1522,39 +1514,6 @@ if run_button:
                 "raw_pdf_data": final_step1_text[:25000]
 
             }
-
-        
-        ####################################################
-        # SAFE PLI JSON
-        ####################################################
-
-        raw_pli = response_pli.get("content", "")
-
-        if isinstance(raw_pli, str):
-
-            raw_pli = raw_pli.strip()
-
-            financial_json = safe_json_load(raw_pli)
-
-        else:
-
-            financial_json = raw_pli
-
-        ####################################################
-        # SAFE RPT JSON
-        ####################################################
-
-        raw_rpt = response_rpt.get("content", "")
-
-        if isinstance(raw_rpt, str):
-
-            raw_rpt = raw_rpt.strip()
-
-            rpt_json = safe_json_load(raw_rpt)
-
-        else:
-
-            rpt_json = raw_rpt
 
         ####################################################
         # AI STUDIO MASTER JSON
