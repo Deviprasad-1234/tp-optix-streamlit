@@ -463,10 +463,7 @@ Treat the following as NON OPERATING:
 
 IMPORTANT:
 
-Remove ALL such items from:
-- Operating Revenue
-- Total Cost
-- Operating Profit
+Show ALL such non operating expenses and income items and write whether it was operating or non operating. Also in the result under "Nature as opearting or non opearting" give the nature of the transaction.
 
 ====================================================
 RETURN FORMAT
@@ -487,7 +484,8 @@ Return ONLY VALID JSON.
     {
       "nature_of_income": "",
       "current_year": "",
-      "previous_year": ""
+      "previous_year": "",
+      "Nature as opearting or non opearting": "",\
     }
   ],
 
@@ -495,7 +493,8 @@ Return ONLY VALID JSON.
     {
       "nature_of_expense": "",
       "current_year": "",
-      "previous_year": ""
+      "previous_year": "",
+      "Nature as opearting or non opearting": ""
     }
   ]
 }
@@ -528,6 +527,7 @@ DO NOT extract:
 - debt equity ratio
 - analysis tables
 
+Important - Under "domestic_or_international" field, place the transction as domestic or internation based on this logic as if the Related party is a Indian Company (if mainly have "Limited", "Private Limited", "Pvt Ltd") then tell Domestic other wise International. Only apply on company names, not on indivisuals.
 ====================================================
 RETURN FORMAT
 ====================================================
@@ -974,6 +974,25 @@ if run_button:
 
         st.json(tp_json)
 
+        ####################################################
+        # CLEANUP FILES
+        ####################################################
+
+        import os
+
+        try:
+
+            if os.path.exists(pdf_path):
+
+                os.remove(pdf_path)
+
+            if os.path.exists(step1_pdf_path):
+
+                os.remove(step1_pdf_path)
+
+        except Exception as cleanup_error:
+
+            print("Cleanup Error:", cleanup_error)
     except Exception as e:
 
         import traceback
