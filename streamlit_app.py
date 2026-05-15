@@ -586,7 +586,18 @@ def ask_chatpdf(source_id, prompt):
 
 def safe_json_load(raw):
 
-    ############################################################
+    if not raw:
+        return {}
+
+    raw = raw.replace("```json", "")
+    raw = raw.replace("```", "")
+
+    try:
+        return json.loads(raw)
+    except:
+        return {}
+
+############################################################
 # CHECK MISSING PLI KEYWORDS
 ############################################################
 
@@ -597,6 +608,80 @@ def check_missing_pli_keywords(
     pl_text
 
 ):
+
+    try:
+
+        ####################################################
+        # NO JSON
+        ####################################################
+
+        if not financial_json:
+
+            return True, ["JSON EMPTY"]
+
+        ####################################################
+        # NO final_pli
+        ####################################################
+
+        if "final_pli" not in financial_json:
+
+            return True, ["final_pli missing"]
+
+        ####################################################
+        # FINAL PLI TEXT
+        ####################################################
+
+        combined_text = json.dumps(
+
+            financial_json["final_pli"]
+
+        ).lower()
+
+        ####################################################
+        # REQUIRED KEYWORDS
+        ####################################################
+
+        required_keywords = [
+
+            "Revenue",
+
+            "Purchase",
+
+            "Employee",
+
+            "Depreciation",
+
+            "Other expenses"
+
+        ]
+
+        ####################################################
+        # CHECK ONLY IF EXISTS IN P&L
+        ####################################################
+
+        missing_keywords = []
+
+        for keyword in required_keywords:
+
+            if keyword.lower() in pl_text.lower():
+
+                if keyword.lower() not in combined_text:
+
+                    missing_keywords.append(keyword)
+
+        ####################################################
+        # RESULT
+        ####################################################
+
+        if len(missing_keywords) > 0:
+
+            return True, missing_keywords
+
+        return False, []
+
+    except Exception as e:
+
+        return True, [str(e)]
 
     try:
 
