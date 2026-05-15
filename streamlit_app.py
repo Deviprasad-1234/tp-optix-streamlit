@@ -464,7 +464,7 @@ Treat the following as NON OPERATING:
 IMPORTANT:
 
 Show ALL such non operating expenses and income items and write whether it was operating or non operating. Also in the result under "Nature as opearting or non opearting" give the nature of the transaction.
-
+Under "final_pli" always give all the Profit and Loss items whatever is available before the Profit Before Tax in the P/L Statement. (e.g - Revenue From Operations to Other Expenses but exclue the Total Income or Total Revenue or Total Expenses or Total Cost type total values just give lineitem wise data)
 ====================================================
 RETURN FORMAT
 ====================================================
@@ -629,6 +629,23 @@ Analyze:
 14. Abnormal margins
 15. Litigation exposure
 16. Tax risk areas
+
+IMPORTANT:
+
+Risk Level MUST ONLY be one of the following exact values:
+
+- Low
+- Medium
+- High
+
+Never generate:
+- Low to Medium
+- Medium to High
+- Moderate
+- Critical
+
+Use ONLY:
+Low, Medium or High.
 
 SECTION 12 — LITIGATION & CONTINGENT LIABILITY ANALYSIS
 ====================================================
