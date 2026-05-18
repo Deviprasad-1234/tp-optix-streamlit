@@ -1459,9 +1459,51 @@ if run_button:
 
                     "missing_keywords": missing_keywords_again,
 
-                    "raw_step2a_response": response_pli_retry.get("content", ""),
+                    ####################################################
+                    # IMPORTANT
+                    ####################################################
 
-                    "raw_pl_extraction": pl_text[:25000]
+                    "chatpdf_generated_json": retry_json,
+
+                    ####################################################
+                    # STEP 2 RAW RESPONSES
+                    ####################################################
+
+                    "raw_step2a_response": response_pli_retry.get(
+
+                        "content",
+
+                        ""
+
+                    ),
+
+                    ####################################################
+                    # CLEAN EXTRACTIONS
+                    ####################################################
+
+                    "step1_pl_extraction": pl_text,
+
+                    "step1_other_income_extraction": oi_text,
+
+                    "step1_other_expense_extraction": oe_text,
+
+                    ####################################################
+                    # AI STUDIO ACTION
+                    ####################################################
+
+                    "ai_studio_instruction": (
+
+                        "Use chatpdf_generated_json first. "
+
+                        "If incomplete, reprocess using "
+
+                        "step1_pl_extraction + "
+
+                        "step1_other_income_extraction + "
+
+                        "step1_other_expense_extraction"
+
+                    )
 
                 }
         ####################################################
