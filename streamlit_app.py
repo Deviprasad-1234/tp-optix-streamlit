@@ -469,7 +469,152 @@ def build_step1_text(
 # CREATE STEP1 PDF
 ############################################################
 
+############################################################
+# CREATE FOCUSED PLI PDF
+############################################################
+
+def create_pli_retry_pdf(
+
+    pl_text,
+
+    oi_text,
+
+    oe_text,
+
+    output_path
+
+):
+
+    doc = SimpleDocTemplate(output_path)
+
+    styles = getSampleStyleSheet()
+
+    story = []
+
+    ####################################################
+    # TITLE
+    ####################################################
+
+    story.append(
+
+        Paragraph(
+
+            "<b>PLI RETRY EXTRACTION PDF</b>",
+
+            styles["Heading1"]
+
+        )
+
+    )
+
+    story.append(Spacer(1, 20))
+
+    ####################################################
+    # P&L
+    ####################################################
+
+    story.append(
+
+        Paragraph(
+
+            "<b>PROFIT AND LOSS EXTRACTION</b>",
+
+            styles["Heading2"]
+
+        )
+
+    )
+
+    story.append(Spacer(1, 10))
+
+    for line in pl_text.split("\\n"):
+
+        if line.strip():
+
+            story.append(
+
+                Paragraph(
+
+                    line,
+
+                    styles["BodyText"]
+
+                )
+
+            )
+
+    ####################################################
+    # OTHER INCOME
+    ####################################################
+
+    story.append(Spacer(1, 20))
+
+    story.append(
+
+        Paragraph(
+
+            "<b>OTHER INCOME EXTRACTION</b>",
+
+            styles["Heading2"]
+
+        )
+
+    )
+
+    for line in oi_text.split("\\n"):
+
+        if line.strip():
+
+            story.append(
+
+                Paragraph(
+
+                    line,
+
+                    styles["BodyText"]
+
+                )
+
+            )
+
+    ####################################################
+    # OTHER EXPENSE
+    ####################################################
+
+    story.append(Spacer(1, 20))
+
+    story.append(
+
+        Paragraph(
+
+            "<b>OTHER EXPENSE EXTRACTION</b>",
+
+            styles["Heading2"]
+
+        )
+
+    )
+
+    for line in oe_text.split("\\n"):
+
+        if line.strip():
+
+            story.append(
+
+                Paragraph(
+
+                    line,
+
+                    styles["BodyText"]
+
+                )
+
+            )
+
+    doc.build(story)
+
 def create_step1_pdf(text, output_path):
+
 
     doc = SimpleDocTemplate(output_path)
 
@@ -683,90 +828,6 @@ def check_missing_pli_keywords(
 
         return True, [str(e)]
 
-    try:
-
-        ####################################################
-        # NO JSON
-        ####################################################
-
-        if not financial_json:
-
-            return True, ["JSON EMPTY"]
-
-        ####################################################
-        # NO final_pli
-        ####################################################
-
-        if "final_pli" not in financial_json:
-
-            return True, ["final_pli missing"]
-
-        ####################################################
-        # FINAL PLI TEXT
-        ####################################################
-
-        combined_text = json.dumps(
-
-            financial_json["final_pli"]
-
-        ).lower()
-
-        ####################################################
-        # REQUIRED KEYWORDS
-        ####################################################
-
-        required_keywords = [
-
-            "Revenue",
-
-            "Purchase",
-
-            "Employee",
-
-            "Depreciation",
-
-            "Other expenses"
-
-        ]
-
-        ####################################################
-        # CHECK ONLY IF EXISTS IN P&L
-        ####################################################
-
-        missing_keywords = []
-
-        for keyword in required_keywords:
-
-            if keyword.lower() in pl_text.lower():
-
-                if keyword.lower() not in combined_text:
-
-                    missing_keywords.append(keyword)
-
-        ####################################################
-        # RESULT
-        ####################################################
-
-        if len(missing_keywords) > 0:
-
-            return True, missing_keywords
-
-        return False, []
-
-    except Exception as e:
-
-        return True, [str(e)]
-
-    if not raw:
-        return {}
-
-    raw = raw.replace("```json", "")
-    raw = raw.replace("```", "")
-
-    try:
-        return json.loads(raw)
-    except:
-        return {}
 ############################################################
 # SMART PLI VALIDATION
 ############################################################
@@ -1644,88 +1705,136 @@ if run_button:
             }
 
         ####################################################
-        # AI STUDIO MASTER JSON
+        # FINAL PLI RECOVERY STEP
         ####################################################
 
-        master_json = {
+        if (
 
-            "job_id": job_id,
+            isinstance(financial_json, dict)
 
-            "financial_json": financial_json,
+            and financial_json.get(
 
-            "rpt_json": rpt_json,
+                "status"
 
-            "tp_json": tp_json
+            ) == "AI_STUDIO_REPROCESS_REQUIRED"
 
-        }
+        ):
 
-        master_json_string = json.dumps(
+            st.warning(
 
-            master_json,
+                "FINAL PLI RECOVERY STEP RUNNING..."
 
-            indent=2
+            )
 
-        )
+            ################################################
+            # CREATE SMALL FOCUSED PDF
+            ################################################
 
-        ####################################################
-        # STORE IN GOOGLE SHEET
-        ####################################################
+            pli_retry_pdf_path = os.path.join(
 
-        timestamp = datetime.now().strftime(
+                GENERATED_FOLDER,
 
-            "%Y-%m-%d %H:%M:%S"
+                "pli_retry.pdf"
 
-        )
+            )
 
-        sheet.update_cell(
+            create_pli_retry_pdf(
 
-            job_row,
+                pl_text,
 
-            2,
+                oi_text,
 
-            master_json_string
+                oe_text,
 
-        )
+                pli_retry_pdf_path
 
-        sheet.update_cell(
+            )
 
-            job_row,
+            ################################################
+            # UPLOAD NEW PDF
+            ################################################
 
-            3,
+            upload_retry = upload_pdf_to_chatpdf(
 
-            timestamp
+                pli_retry_pdf_path
 
-        )
-        sheet.update_cell(
+            )
 
-            job_row,
+            retry_source_id = upload_retry.get(
 
-            10,
+                "sourceId"
 
-            "COMPLETED"
+            )
 
-        )
-        ####################################################
-        # AI STUDIO MASTER JSON
-        ####################################################
+            ################################################
+            # DOUBLE RETRY
+            ################################################
 
-        import json
+            if retry_source_id:
 
-        final_ai_json = {
+                retry_count = 0
 
-            "step2_pli_json": financial_json,
+                while retry_count < 2:
 
-            "step2_rpt_json": rpt_json,
+                    retry_response = ask_chatpdf(
 
-            "step3_tp_json": tp_json
+                        retry_source_id,
 
-        }
+                        build_prompt_pli()
+
+                    )
+
+                    retry_json = safe_json_load(
+
+                        retry_response.get(
+
+                            "content",
+
+                            ""
+
+                        )
+
+                    )
+
+                    ################################################
+                    # VALIDATE AGAIN
+                    ################################################
+
+                    retry_failed, retry_missing = check_missing_pli_keywords(
+
+                        retry_json,
+
+                        pl_text
+
+                    )
+
+                    ################################################
+                    # SUCCESS
+                    ################################################
+
+                    if not retry_failed:
+
+                        financial_json = retry_json
+
+                        st.success(
+
+                            "FINAL PLI RECOVERY SUCCESSFUL"
+
+                        )
+
+                        break
+
+                    retry_count += 1
+
+            sheet.update_cell(
+                job_row,
+                10,
+                "COMPLETED"
+            )
         ####################################################
         # CLEANUP FILES
         ####################################################
-
-        import os
-
+                
         try:
 
             if os.path.exists(pdf_path):
@@ -1739,6 +1848,29 @@ if run_button:
         except Exception as cleanup_error:
 
             print("Cleanup Error:", cleanup_error)
+
+        ####################################################
+        # DONE MESSAGE
+        ####################################################
+
+        st.success(
+
+            "DONE — Task Finished Successfully"
+
+        )
+
+        st.balloons()
+
+        st.info(
+
+            "Task completed successfully. "
+
+            "Please return to AI Studio "
+
+            "and refresh the results page."
+
+        )
+
     except Exception as e:
 
         import traceback
@@ -1746,14 +1878,3 @@ if run_button:
         st.error(str(e))
 
         st.code(traceback.format_exc())
-    ####################################################
-    # DONE MESSAGE
-    ####################################################
-
-    st.success(
-
-        "DONE — Task Finished Successfully"
-
-    )
-
-    st.balloons()
