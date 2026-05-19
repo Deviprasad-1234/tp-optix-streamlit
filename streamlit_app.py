@@ -1701,7 +1701,7 @@ if run_button:
 
             job_row,
 
-            10,
+            2,
 
             json.dumps(
 
