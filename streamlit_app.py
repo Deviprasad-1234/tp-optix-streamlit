@@ -746,88 +746,6 @@ def safe_json_load(raw):
 # CHECK MISSING PLI KEYWORDS
 ############################################################
 
-def check_missing_pli_keywords(
-
-    financial_json,
-
-    pl_text
-
-):
-
-    try:
-
-        ####################################################
-        # NO JSON
-        ####################################################
-
-        if not financial_json:
-
-            return True, ["JSON EMPTY"]
-
-        ####################################################
-        # NO final_pli
-        ####################################################
-
-        if "final_pli" not in financial_json:
-
-            return True, ["final_pli missing"]
-
-        ####################################################
-        # FINAL PLI TEXT
-        ####################################################
-
-        combined_text = json.dumps(
-
-            financial_json["final_pli"]
-
-        ).lower()
-
-        ####################################################
-        # REQUIRED KEYWORDS
-        ####################################################
-
-        required_keywords = [
-
-            "Revenue",
-
-            "Purchase",
-
-            "Employee",
-
-            "Depreciation",
-
-            "Other expenses"
-
-        ]
-
-        ####################################################
-        # CHECK ONLY IF EXISTS IN P&L
-        ####################################################
-
-        missing_keywords = []
-
-        for keyword in required_keywords:
-
-            if keyword.lower() in pl_text.lower():
-
-                if keyword.lower() not in combined_text:
-
-                    missing_keywords.append(keyword)
-
-        ####################################################
-        # RESULT
-        ####################################################
-
-        if len(missing_keywords) > 0:
-
-            return True, missing_keywords
-
-        return False, []
-
-    except Exception as e:
-
-        return True, [str(e)]
-
 ############################################################
 # SMART PLI VALIDATION
 ############################################################
@@ -1445,128 +1363,25 @@ if run_button:
         )
 
         ####################################################
-        # CHECK MISSING KEYWORDS
+        # SIMPLE PLI FAILURE CHECK
         ####################################################
 
-        rerun_required, missing_keywords = check_missing_pli_keywords(
+        if (
 
-            financial_json,
+            not financial_json
 
-            pl_text
+            or "final_pli" not in financial_json
 
-        )
+        ):
 
-        ####################################################
-        # RERUN ONLY IF MISSING
-        ####################################################
+            financial_json = {
 
-        if rerun_required:
+                "status": "AI_STUDIO_REPROCESS_REQUIRED",
 
-            st.warning(
+                "reason": "INITIAL PLI JSON FAILED"
 
-                f"Re-running PLI Extraction. Missing: {missing_keywords}"
+            }
 
-            )
-
-            ####################################################
-            # SECOND ATTEMPT
-            ####################################################
-
-            response_pli_retry = ask_chatpdf(
-
-                source_id_1,
-
-                build_prompt_pli()
-
-            )
-
-            retry_json = safe_json_load(
-
-                response_pli_retry.get("content", "")
-
-            )
-
-            ####################################################
-            # CHECK AGAIN
-            ####################################################
-
-            rerun_required_again, missing_keywords_again = check_missing_pli_keywords(
-
-                retry_json,
-
-                pl_text
-
-            )
-
-            ####################################################
-            # SUCCESS
-            ####################################################
-
-            if not rerun_required_again:
-
-                financial_json = retry_json
-
-            ####################################################
-            # FINAL FAILURE
-            ####################################################
-
-            else:
-
-                financial_json = {
-
-                    "status": "AI_STUDIO_REPROCESS_REQUIRED",
-
-                    "reason": "Missing mandatory PLI items after retry",
-
-                    "missing_keywords": missing_keywords_again,
-
-                    ####################################################
-                    # IMPORTANT
-                    ####################################################
-
-                    "chatpdf_generated_json": retry_json,
-
-                    ####################################################
-                    # STEP 2 RAW RESPONSES
-                    ####################################################
-
-                    "raw_step2a_response": response_pli_retry.get(
-
-                        "content",
-
-                        ""
-
-                    ),
-
-                    ####################################################
-                    # CLEAN EXTRACTIONS
-                    ####################################################
-
-                    "step1_pl_extraction": pl_text,
-
-                    "step1_other_income_extraction": oi_text,
-
-                    "step1_other_expense_extraction": oe_text,
-
-                    ####################################################
-                    # AI STUDIO ACTION
-                    ####################################################
-
-                    "ai_studio_instruction": (
-
-                        "Use chatpdf_generated_json first. "
-
-                        "If incomplete, reprocess using "
-
-                        "step1_pl_extraction + "
-
-                        "step1_other_income_extraction + "
-
-                        "step1_other_expense_extraction"
-
-                    )
-
-                }
         ####################################################
         # STEP 2B — RPT JSON
         ####################################################
@@ -1776,6 +1591,7 @@ if run_button:
 
                 while retry_count < 2:
 
+                   
                     retry_response = ask_chatpdf(
 
                         retry_source_id,
@@ -1797,22 +1613,16 @@ if run_button:
                     )
 
                     ################################################
-                    # VALIDATE AGAIN
-                    ################################################
-
-                    retry_failed, retry_missing = check_missing_pli_keywords(
-
-                        retry_json,
-
-                        pl_text
-
-                    )
-
-                    ################################################
                     # SUCCESS
                     ################################################
 
-                    if not retry_failed:
+                    if (
+
+                        retry_json
+
+                        and "final_pli" in retry_json
+
+                    ):
 
                         financial_json = retry_json
 
@@ -1826,11 +1636,82 @@ if run_button:
 
                     retry_count += 1
 
-            sheet.update_cell(
-                job_row,
-                10,
-                "COMPLETED"
-            )
+                    retry_json = safe_json_load(
+
+                        retry_response.get(
+
+                            "content",
+
+                            ""
+
+                        )
+
+                    )
+            ####################################################
+            # FINAL FAILURE
+            ####################################################
+
+            if (
+
+                isinstance(financial_json, dict)
+
+                and financial_json.get(
+
+                    "status"
+
+                ) == "AI_STUDIO_REPROCESS_REQUIRED"
+
+            ):
+
+                financial_json = {
+
+                    "status": "FINAL_PLI_RECOVERY_FAILED",
+
+                    "reason": "Focused PLI recovery failed",
+
+                    "step1_pl_extraction": pl_text,
+
+                    "step1_other_income_extraction": oi_text,
+
+                    "step1_other_expense_extraction": oe_text
+
+                }
+
+                    ####################################################
+                    # MASTER JSON
+                    ####################################################
+
+                    master_json = {
+
+                        "job_id": job_id,
+
+                        "financial_json": financial_json,
+
+                        "rpt_json": rpt_json,
+
+                        "tp_json": tp_json
+
+                    }
+
+                    ####################################################
+                    # STORE IN SHEET
+                    ####################################################
+
+                    sheet.update_cell(
+
+                        job_row,
+
+                        10,
+
+                        json.dumps(
+
+                            master_json,
+
+                            indent=2
+
+                        )
+
+                    )
         ####################################################
         # CLEANUP FILES
         ####################################################
