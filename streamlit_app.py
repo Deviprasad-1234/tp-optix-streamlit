@@ -804,7 +804,7 @@ Prepare the FINAL TRANSFER PRICING PLI.
 OPERATING VS NON OPERATING RULES
 ====================================================
 
-Treat the following as NON OPERATING:
+Treat the following as NON OPERATING: (only use in the non_operating_expense and non_operating_income analysis time)
 
 - Interest Income
 - Dividend Income
@@ -828,34 +828,36 @@ IMPORTANT:
 STRICT EXTRACTION SOURCE RULES:
 
 1. "final_pli" MUST be created STRICTLY and ONLY from:
-PROFIT AND LOSS EXTRACTION section. (include all items from Revenue or Revenue from Operation to Other expenses all strictly everytime. Don't skip please)
+PROFIT AND LOSS EXTRACTION section of step 1.
 
-2. "non_operating_income" MUST be created STRICTLY and ONLY from:
+2. IMPORTANT:
+Capture ALL line items EXACTLY AS DISCLOSED in Profit and Loss Statement till Profit Before Tax.
+
+3. DO NOT remove:
+- Other Income
+- Finance Cost
+- Exceptional Items
+- Any other item
+
+4. DO NOT perform:
+- Operating adjustments
+- Non-operating adjustments
+- Margin calculations
+- Reclassification
+
+5. final_pli must preserve ORIGINAL P&L structure exactly as disclosed.
+
+6. Even if an item is Non Operating, it MUST still appear in final_pli if present in Profit and Loss Statement.
+
+7. non_operating_income and non_operating_expense are ONLY separate analytical classifications and should NOT affect final_pli.
+
+8. "non_operating_income" MUST be created STRICTLY and ONLY from:
 OTHER INCOME EXTRACTION section.
 
-3. "non_operating_expense" MUST be created STRICTLY and ONLY from:
+9. "non_operating_expense" MUST be created STRICTLY and ONLY from:
 OTHER EXPENSE EXTRACTION section.
 
-4. Do NOT move items from P&L into non_operating_income.
-
-5. Do NOT move items from P&L into non_operating_expense.
-
-6. Do NOT deduct non-operating items from final_pli.
-
-7. final_pli should preserve the ORIGINAL Profit & Loss structure exactly as disclosed in the P&L before Profit Before Tax.
-
-8. Exclude:
-- Profit Before Tax
-- Profit After Tax
-- EPS
-- OCI
-- Comprehensive Income
-
-9. Preserve ONLY line-item level data.
-
-10. AI dashboard calculations and PLI adjustments will happen later externally. Do NOT perform any adjustment calculations here.
-
-11. Under:
+10. Under:
 "Nature as opearting or non opearting"
 
 ONLY use:
