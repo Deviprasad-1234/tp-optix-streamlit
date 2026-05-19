@@ -811,6 +811,7 @@ Treat the following as NON OPERATING: (only use in the non_operating_expense and
 - Finance Cost
 - Gain/Loss on Investments
 - Gain/Loss on Sale of Assets
+- Miscellenous Income
 - Loss on discard of PPE
 - Impairment Loss
 - Exceptional Items
