@@ -1677,41 +1677,41 @@ if run_button:
 
                 }
 
-                    ####################################################
-                    # MASTER JSON
-                    ####################################################
+        ####################################################
+        # MASTER JSON
+        ####################################################
 
-                    master_json = {
+        master_json = {
 
-                        "job_id": job_id,
+            "job_id": job_id,
 
-                        "financial_json": financial_json,
+            "financial_json": financial_json,
 
-                        "rpt_json": rpt_json,
+            "rpt_json": rpt_json,
 
-                        "tp_json": tp_json
+            "tp_json": tp_json
 
-                    }
+        }
 
-                    ####################################################
-                    # STORE IN SHEET
-                    ####################################################
+        ####################################################
+        # STORE IN SHEET
+        ####################################################
 
-                    sheet.update_cell(
+        sheet.update_cell(
 
-                        job_row,
+            job_row,
 
-                        10,
+            10,
 
-                        json.dumps(
+            json.dumps(
 
-                            master_json,
+                master_json,
 
-                            indent=2
+                indent=2
 
-                        )
+            )
 
-                    )
+        )
         ####################################################
         # CLEANUP FILES
         ####################################################
